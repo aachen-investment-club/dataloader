@@ -1,4 +1,5 @@
-# aic-dataloader
+# dataloader
+This dataloader module provides easy API access to financial data providers.
 
 ## Setup
 
@@ -14,11 +15,15 @@
 
 ## Usage
 
-... work in progress
+Documentation is work in progress. There might be frequent changes in near future and we plan to also include other APIs. This module is supposed to be added as submodule to a repository and then you can import and run all functions in [refinitivloader.py](src/refinitivloader.py)
 
-## Dependencies
-
-```txt
-pandas
-refinitiv-data
+```sh
+git submodule add https://github.com/aachen-investment-club/dataloader.git
+git submodule update --init --recursive
 ```
+
+If the dataloader module is updated, you need to manually update the submodule in this repo too with the above command.
+
+## Refintiv Resources
+
+Further resources on using the lseg / refinitiv data api can be found in the [LSEG Repo](https://github.com/LSEG-API-Samples/Example.DataLibrary.Python/tree/lseg-data-examples/Tutorials).

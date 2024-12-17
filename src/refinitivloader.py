@@ -1,7 +1,18 @@
 import os
-import refinitiv.data as rd
+import lseg.data as ld
 import pandas as pd
 import json
+
+def open_session() -> None:
+    """Open Refinitiv session
+
+    Example:
+    >>> open_session()
+
+    """
+    ld.open_session(
+    config_name="Configuration/refinitiv-data.config.json",
+    name="platform.rdp")
 
 
 def get_rics(index: str) -> list[str]:
@@ -22,12 +33,27 @@ def get_rics(index: str) -> list[str]:
     - sp500
     """
 
-    with open(f'rics/rics_{index}.json', 'r') as f:
+    with open(f'dataloader/naming/rics_{index}.json', 'r') as f:
         rics = json.load(f)
     return rics
 
+def get_fields() -> list[dict]:
+    """Get list of fields available for download
 
-def update_data(rics: list[str], end: str, debug: bool = False) -> None:
+    Returns:
+        list[str]: List of fields
+
+    Example:
+    >>> fields = get_fields()
+    >>> print(fields)
+    """
+
+    with open('dataloader/naming/fields.json', 'r') as f:
+        fields = json.load(f)
+    return fields
+
+
+def update_data(rics: list[str], new_end: str, debug: bool = False) -> None:
     """Update latest data and concatenate to existing data
 
     Args:
@@ -46,26 +72,39 @@ def update_data(rics: list[str], end: str, debug: bool = False) -> None:
     if not os.path.exists("data"):
         os.makedirs("data")
 
-    rd.open_session()
+    open_session()
 
-    for ric in rics:
+    for i, ric in enumerate(rics):
 
         # if data exists
         df0 = pd.read_parquet(f"data/{ric}.parquet")
         latest_date = df0.index[-1]
         if debug:
             print(f"Latest date for {ric}: {latest_date}")
-        fields = df0.columns.tolist()
+        cols = df0.columns.tolist()
+        
+        available_fields = get_fields()
+
+        fields = []
+        for field_name in cols:
+            if field_name not in available_fields:
+                print(f"Field {field_name} not available for {ric}")
+                return
+            else:
+                fields.append(available_fields[field_name])
 
         # only download latest date
-        if latest_date < pd.Timestamp(end):
-            df1 = rd.get_history(universe=[ric], fields=fields, start=latest_date, end=end)
+        if latest_date < pd.Timestamp(new_end):
+            df1 = ld.get_history(universe=[ric], fields=fields, start=latest_date, end=new_end)
             
             # append to existing data
             df = pd.concat([df0, df1])
             df.to_parquet(f"data/{ric}.parquet")
+
+            if debug:
+                print(f"{(i+1)}/{len(rics)} | Downloaded data for {ric}")
     
-    rd.close_session()
+    ld.close_session()
 
 
 def init_data(rics: list[str], fields: list[str], start: str, end: str, debug: bool = False) -> None:
@@ -92,34 +131,42 @@ def init_data(rics: list[str], fields: list[str], start: str, end: str, debug: b
     if not os.path.exists("data"):
         os.makedirs("data")
 
-    rd.open_session()
+    # check which rics already have data
+    skip = []
+    for ric in rics:
+        if os.path.exists(f"data/{ric}.parquet"):
+            skip.append(ric)
+            if debug:
+                print(f"Data for {ric} already exists")
+
+    # remove rics that already have data
+    rics = list(set(rics) - set(skip))
+
+    # if no rics to download return
+    if len(rics) == 0:
+        return
+    
+    # open session and download data
+    open_session()
 
     for i, ric in enumerate(rics):
+    
+        # get data
+        df = ld.get_history(universe=[ric], fields=fields, start=start, end=end)
         
-        # check if data already exists
-        if os.path.exists(f"data/{ric}.parquet"):
-            if debug:
-                print(f"{i+1}/{len(rics)} | Data for {ric} already exists")
+        if debug:
+            print(f"{i+1}/{len(rics)} | Retrieved {len(df.columns)} fields for {ric}")
         
-        #if not download data
-        else:
-
-            # get data
-            df = rd.get_history(universe=[ric], fields=fields, start=start, end=end)
-            
+        # if fields are missing skip
+        if len(df.columns) < len(fields):
             if debug:
-                print(f"{i+1}/{len(rics)} | Retrieved {len(df.columns)} fields for {ric}")
-            
-            # if fields are missing skip
-            if len(df.columns) < len(fields):
-                if debug:
-                    print(f"{i+1}/{len(rics)} | Fields {set(fields) - set(df.columns) } are missing")
-                continue
+                print(f"{i+1}/{len(rics)} | Fields {set(fields) - set(df.columns) } are missing")
+            continue
 
-            # save data
-            df.to_parquet(f"data/{ric}.parquet")
+        # save data
+        df.to_parquet(f"data/{ric}.parquet")
 
-    rd.close_session()
+    ld.close_session()
 
 
 def load_raw_data(rics: list[str]) -> dict:
