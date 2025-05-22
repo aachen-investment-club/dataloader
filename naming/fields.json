@@ -1,3 +1,6 @@
 {
-    "Price Close": "TR.PriceClose"
+    "Price Close": "TR.PriceClose",
+    "Volume": "TR.Volume",
+    "Enterprise Value - Mean": "TR.EVMean",
+    "EBITDA - Mean": "TR.EBITDAMean"
 }
