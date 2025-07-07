@@ -2,5 +2,8 @@
     "Price Close": "TR.PriceClose",
     "Volume": "TR.Volume",
     "Enterprise Value - Mean": "TR.EVMean",
-    "EBITDA - Mean": "TR.EBITDAMean"
+    "EBITDA - Mean": "TR.EBITDAMean",
+    "Total Assets": "TR.F.TotAssets",
+    "Company Market Cap": "TR.CompanyMarketCap",
+    "Dividends - Common - Cash Paid, PoP % Chg": "TR.F.DivComCashPaidPopPctChg"
 }
