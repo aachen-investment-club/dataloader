@@ -2,6 +2,7 @@ import os
 import lseg.data as ld
 import pandas as pd
 import json
+from pathlib import Path
 
 def open_session() -> None:
     """Open Refinitiv session
@@ -53,7 +54,7 @@ def get_fields() -> list[dict]:
     return fields
 
 
-def update_data(rics: list[str], new_end: str, debug: bool = False) -> None:
+def update_data(rics: list[str], new_end: str, base_dir: Path, debug: bool = False) -> None:
     """Update latest data and concatenate to existing data
 
     Args:
@@ -68,6 +69,9 @@ def update_data(rics: list[str], new_end: str, debug: bool = False) -> None:
 
     """
 
+    if not isinstance(base_dir, Path):
+        base_dir = Path(base_dir)
+
     # if data folder does not exist create it
     if not os.path.exists("data"):
         os.makedirs("data")
@@ -77,7 +81,7 @@ def update_data(rics: list[str], new_end: str, debug: bool = False) -> None:
     for i, ric in enumerate(rics):
 
         # if data exists
-        df0 = pd.read_parquet(f"data/{ric}.parquet")
+        df0 = pd.read_parquet(base_dir / f"{ric}.parquet")
         latest_date = df0.index[-1]
         if debug:
             print(f"Latest date for {ric}: {latest_date}")
@@ -99,7 +103,7 @@ def update_data(rics: list[str], new_end: str, debug: bool = False) -> None:
             
             # append to existing data
             df = pd.concat([df0, df1])
-            df.to_parquet(f"data/{ric}.parquet")
+            df.to_parquet(base_dir / f"{ric}.parquet")
 
             if debug:
                 print(f"{(i+1)}/{len(rics)} | Downloaded data for {ric}")
@@ -107,7 +111,7 @@ def update_data(rics: list[str], new_end: str, debug: bool = False) -> None:
     ld.close_session()
 
 
-def init_data(rics: list[str], fields: list[str], start: str, end: str, debug: bool = False) -> None:
+def init_data(rics: list[str], fields: list[str], start: str, end: str, base_dir: Path, debug: bool = False) -> None:
     """Download data for a list of RICs and save to parquet files
 
     Args:
@@ -126,6 +130,8 @@ def init_data(rics: list[str], fields: list[str], start: str, end: str, debug: b
     
     """
 
+    if not isinstance(base_dir, Path):
+        base_dir = Path(base_dir)
 
     # if data folder does not exist create it
     if not os.path.exists("data"):
@@ -134,7 +140,7 @@ def init_data(rics: list[str], fields: list[str], start: str, end: str, debug: b
     # check which rics already have data
     skip = []
     for ric in rics:
-        if os.path.exists(f"data/{ric}.parquet"):
+        if os.path.exists(base_dir / f"{ric}.parquet"):
             skip.append(ric)
             if debug:
                 print(f"Data for {ric} already exists")
@@ -164,12 +170,12 @@ def init_data(rics: list[str], fields: list[str], start: str, end: str, debug: b
             continue
 
         # save data
-        df.to_parquet(f"data/{ric}.parquet")
+        df.to_parquet(base_dir / f"{ric}.parquet")
 
     ld.close_session()
 
 
-def load_raw_data(rics: list[str]) -> dict:
+def load_raw_data(rics: list[str], base_dir: Path) -> dict:
     """Load raw data without preprocessing
     
     Args:
@@ -179,18 +185,22 @@ def load_raw_data(rics: list[str]) -> dict:
         dict: dictionary of DataFrames for each RIC
     """
     
+    if not isinstance(base_dir, Path):
+        base_dir = Path(base_dir)
+
     data = {}
     
     for i, ric in enumerate(rics):
-        if os.path.exists(f"data/{ric}.parquet"):
-            data[ric] = pd.read_parquet(f"data/{ric}.parquet")
+        ric_dir = base_dir / f"{ric}.parquet"
+        if os.path.exists(ric_dir):
+            data[ric] = pd.read_parquet(ric_dir)
         else:
             print(f"{i} / {len(rics)} | Data for {ric} not found")
     
     return data
 
 
-def load_preprocessed_data(rics: list[str]) -> dict:
+def load_preprocessed_data(rics: list[str], base_dir: Path) -> dict:
     """Load raw data, forward fill and remove missing values
 
     Args:
@@ -200,7 +210,10 @@ def load_preprocessed_data(rics: list[str]) -> dict:
         dict: dictionary of DataFrames for each RIC
     """
     
-    data = load_raw_data(rics)
+    if not isinstance(base_dir, Path):
+        base_dir = Path(base_dir)
+
+    data = load_raw_data(rics, base_dir)
 
     # preprocess
     remove = []
