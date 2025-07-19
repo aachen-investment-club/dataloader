@@ -3,6 +3,7 @@ import lseg.data as ld
 import pandas as pd
 import json
 from pathlib import Path
+from tqdm import tqdm
 
 def open_session() -> None:
     """Open Refinitiv session
@@ -72,13 +73,17 @@ def update_data(rics: list[str], new_end: str, base_dir: Path, debug: bool = Fal
     if not isinstance(base_dir, Path):
         base_dir = Path(base_dir)
 
-    # if data folder does not exist create it
-    if not os.path.exists("data"):
-        os.makedirs("data")
+    # if base directory does not exist create it
+    if not base_dir.exists():
+        raise RuntimeError("Base Directory does not exist. Please create it manually.")
 
     open_session()
 
-    for i, ric in enumerate(rics):
+    pbar = tqdm(enumerate(rics), total=len(rics))
+
+    for i, ric in pbar:
+
+        pbar.set_description(ric)
 
         # if data exists
         df0 = pd.read_parquet(base_dir / f"{ric}.parquet")
@@ -133,17 +138,15 @@ def init_data(rics: list[str], fields: list[str], start: str, end: str, base_dir
     if not isinstance(base_dir, Path):
         base_dir = Path(base_dir)
 
-    # if data folder does not exist create it
-    if not os.path.exists("data"):
-        os.makedirs("data")
+    # if base directory does not exist create it
+    if not base_dir.exists():
+        raise RuntimeError("Base Directory does not exist. Please create it manually.")
 
     # check which rics already have data
     skip = []
-    for ric in rics:
-        if os.path.exists(base_dir / f"{ric}.parquet"):
+    for ric in tqdm(rics, total=len(rics), desc="Check if RICs were already downloaded"):
+        if Path(base_dir / f"{ric}.parquet").exists():
             skip.append(ric)
-            if debug:
-                print(f"Data for {ric} already exists")
 
     # remove rics that already have data
     rics = list(set(rics) - set(skip))
@@ -154,14 +157,15 @@ def init_data(rics: list[str], fields: list[str], start: str, end: str, base_dir
     
     # open session and download data
     open_session()
+    
+    pbar = tqdm(enumerate(rics), total=len(rics))
 
-    for i, ric in enumerate(rics):
+    for i, ric in pbar:
+
+        pbar.set_description(f"Download {len(df.columns)} fields for {ric}")
     
         # get data
         df = ld.get_history(universe=[ric], fields=fields, start=start, end=end)
-        
-        if debug:
-            print(f"{i+1}/{len(rics)} | Retrieved {len(df.columns)} fields for {ric}")
         
         # if fields are missing skip
         if len(df.columns) < len(fields):
